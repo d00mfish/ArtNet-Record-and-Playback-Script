@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from pathlib import Path
-from ArtNetTools import ArtNetPlayback, ArtNetRecord
+from artnet_tools import ArtNetPlayback, ArtNetRecord
 import sys, getopt
 
 
