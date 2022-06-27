@@ -1,8 +1,11 @@
 #!/usr/bin/python
 
 from pathlib import Path
+from turtle import bgcolor
 from artnet_tools import ArtNetPlayback, ArtNetRecord
 import sys, getopt
+
+from helpfunctions import bcolors
 
 
 class Menu:
@@ -14,23 +17,23 @@ class Menu:
     mainmenu_options = {
         1: 'Record Art-Net',
         2: 'Replay Art-Rec File',
-        3: 'Exit',
+        3: bcolors.FAIL + 'Exit' + bcolors.ENDC,
     }
 
     # Menu ID: 2
     recordmenu_options = {
-        1: 'Start Recording',
+        1: bcolors.OKGREEN + 'Start Recording' + bcolors.ENDC,
         2: 'Set Duration (Default 10 Minutes)',
         3: 'Back',
-        4: 'Exit',
+        4: bcolors.FAIL + 'Exit' + bcolors.ENDC,
     }
 
     # Menu ID: 3
     replaymenu_options = {
-        1: 'Start (path input)',
+        1:  bcolors.OKGREEN + 'Start (path input)' + bcolors.ENDC,
         2: 'Shuffle all local files',
         3: 'Back',
-        4: 'Exit',
+        4: bcolors.FAIL + 'Exit' + bcolors.ENDC,
     }
 
     menus = {
@@ -55,7 +58,7 @@ class Menu:
             if example:
                 promt = promt.strip(':') + ' (' + example + '): '
 
-            ret = input(promt)
+            ret = input(bcolors.WARNING + promt + bcolors.ENDC)
 
             # Apply data type if any
             if data_type:
@@ -88,7 +91,7 @@ class Menu:
         pass
 
     def exit_skript(self):
-        print('Alright, bye!')
+        print(bcolors.PINK + 'Alright, bye!' + bcolors.ENDC)
         sys.exit(0)
 
     def menu_logic(self):
@@ -122,11 +125,11 @@ class Menu:
                         if option != "":
                             universes = [int(i) for i in option.strip('" ').split(',')]
                             
-                            option = self.wait_for_input(promt = "Output dir / file path [leave empty for current dir]:", example = '"C:/Users/output.dat"', data_type=str)
+                            option = self.wait_for_input(promt = "Output dir/file path [leave empty for current dir]:", example = '"C:/Users/output.dat"', data_type=str)
                             output_path = Path(option.strip('" '))
 
                             self.rec = ArtNetRecord(universes, self.record_dur, output_path)
-                            self.rec.start_recording()
+                            self.rec.record()
 
                     except Exception as e:
                         print("An Error occured:", e)
@@ -179,15 +182,15 @@ class Menu:
                     return
 
     def logo(self) -> str:
-        return('''
+        return(bcolors.PINK + """
           _____  _____   _____ 
     /\   |  __ \|  __ \ / ____|
    /  \  | |__) | |__) | (___  
   / /\ \ |  _  /|  ___/ \___ \ 
  / ____ \| | \ \| |     ____) |
 /_/    \_\_|  \_\_|    |_____/ 
-Art-Net Record and Playback Script
-''')
+""" +  bcolors.BOLD  + "Art-Net Record and Playback Script\n"
+ + bcolors.ENDC)
 
     def argparse(self, argv) -> int:
         input_file = Path()
@@ -203,15 +206,15 @@ Usage: ARPS.py [OPTIONS] or with menu.
 -v, --verbose (40): Prints debug msg every n frames 
 -m, --mode (r,rec,record / p,play,playback): Mode to run in
 
-----------playback----------
+""" + bcolors.OKGREEN +"""----------playback----------
 -a, --adress (10.1.2.3): IP of Art-Net destination
 -i, --ifile (C:/User/example.dat): File to play
 
-----------record----------
+""" + bcolors.OKBLUE +"""----------record----------
 -u, --universes (0,1,2,3): Universes to record
 -d, --duration (30): Duration of recording in minutes
 -o, --out (C:/User/[example.dat]): Output file or directory
-"""
+""" + bcolors.ENDC
 
         try:
             opts, args = getopt.getopt(

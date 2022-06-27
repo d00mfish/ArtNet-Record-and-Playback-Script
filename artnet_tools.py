@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import threading
-import zipfunctions
+import helpfunctions as h
 import re
 import time
 import sys
@@ -54,8 +54,8 @@ class ArtNetRecord:
         elif output.name != '':
             self.final_path = output
 
-        print("""----------record----------\nUniverses: {}\nDuration: {}s\nOutput: "{}" """.format(self.universes,
-              self.rec_time, self.final_path))
+        print( h.bcolors.OKBLUE +"----------record----------\nUniverses: {}\nDuration: {}s\nOutput: '{}' ".format(self.universes,
+              self.rec_time, self.final_path) + h.bcolors.ENDC)
 
     def __callback(self, data, universe: int):
         """Callback for every Packet
@@ -114,11 +114,11 @@ class ArtNetRecord:
             # User abort
             except KeyboardInterrupt:
                 self.debug = False
-                print("\n\nTERMINATED BY USER, Saving Data...\n")
+                print("\n\n" + h.bcolors.WARNING + "TERMINATED BY USER, Saving Data...\n" + h.bcolors.ENDC)
 
             # Timeout abort
             except TimeoutError:
-                print("\n\nNo data received for {} seconds. Stopping recording.".format(self.timeout))
+                print("\n\n" + h.bcolors.FAIL + "No data received for {} seconds. Stopping recording.".format(self.timeout) + h.bcolors.ENDC)
 
             # Close properly
             del self.a
@@ -133,10 +133,10 @@ class ArtNetRecord:
 
             # Compress file to final location
             with open(self.TMP_PATH, 'rb') as tmp:
-                zipfunctions.write_file(tmp.read(), self.final_path)
+                h.write_file(tmp.read(), self.final_path)
 
         else:
-            print("!File must be longer than {} seconds, NOT SAVING.".format(self.min_len))
+            print(h.bcolors.FAIL + "File must be longer than {} seconds, NOT SAVING.".format(self.min_len) + h.bcolors.ENDC)
 
         # Remove temp file
         remove(self.TMP_PATH)
@@ -168,9 +168,9 @@ class ArtNetPlayback:
         self.duration, self.universes = self.get_footer_info()
 
         if self.debug:
-            print("""----------playback----------\nAdress: {}\nFile: "{}" """.format(self.target_ip, self.filepath))
+            print(h.bcolors.OKBLUE + "----------playback----------\nAdress: {}\nFile: '{}' ".format(self.target_ip, self.filepath) + h.bcolors.ENDC)
 
-        self.textfile = open(zipfunctions.unzip_file(self.filepath), 'r')
+        self.textfile = open(h.unzip_file(self.filepath), 'r')
 
         # Create Smartnet instance
         self.a = Smartnet(self.target_ip, self.universes, 40, True)
@@ -254,7 +254,7 @@ class ArtNetPlayback:
             tuple(int[duration in ms], list[int(universes)])
         """
 
-        with open(zipfunctions.unzip_file(self.filepath), 'rb') as tf:
+        with open(h.unzip_file(self.filepath), 'rb') as tf:
             
             try:  
                 tf.seek(-2, SEEK_END)
