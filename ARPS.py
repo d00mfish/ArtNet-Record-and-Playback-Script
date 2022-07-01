@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 from pathlib import Path
-from os import walk
 from random import shuffle
 from turtle import bgcolor
 from artnet_tools import ArtNetPlayback, ArtNetRecord
@@ -10,8 +9,6 @@ import sys, getopt
 from helpfunctions import bcolors
 
 #TODO:
-# Test IP with regex mask
-# Dispalyed time gets negative
 
 
 class Menu:
@@ -82,34 +79,6 @@ class Menu:
 
         return ret
 
-    def get_artrec_files(self, path):
-
-        # Get all files in current directory
-        files = next(walk(path), (None, None, []))[2]
-
-        if files != []:
-            # Filter out all non-artrec files
-            files = [f for f in files if f.endswith('.artrec')]
-        
-        return files
-
-    def shuffle_loop(self, path, ip):
-        playlist = self.get_artrec_files(path)
-        if playlist != []:
-            try:
-                while(1):
-                    # Play all files in dir
-                    for file in playlist:
-                        self.rep = ArtNetPlayback(ip, Path.cwd() / file)
-                        print("Replaying: {}".format(file))
-                    
-                    # Re-shuffle playlist
-                    shuffle(playlist)
-
-            # Exit skript if user presses Ctrl+C
-            except KeyboardInterrupt:
-                print(bcolors.WARNING + "\nExiting loop..." + bcolors.ENDC)
-                return
 
     def print_menu(self, ID):
         """prints the menu with the given ID
@@ -133,30 +102,9 @@ class Menu:
             ip (_type_): IP of Art-Net receiver
         """
 
-        if ip != '':
-        
-            if path.name.endswith('.artrec'):
-                self.rep = ArtNetPlayback(ip, path)
-                print(bcolors.OKGREEN + "Replaying..." + bcolors.ENDC)
-                self.rep.start_playback()
+        self.rep = ArtNetPlayback(ip, path)
+        self.rep.start_playback()
 
-            elif path.is_dir():
-                playlist = self.get_artrec_files(path)
-
-                if playlist != []:
-                    
-                    for i,artrec in enumerate(playlist):
-                        self.rep = ArtNetPlayback(ip, path / artrec)
-                        print(bcolors.OKGREEN + f"Replaying...{i+1}/{len(playlist)}" + bcolors.ENDC)
-                        self.rep.start_playback()
-                else:
-                    print(bcolors.FAIL + "No files found in directory." + bcolors.ENDC)
-
-            else:
-                print(bcolors.FAIL + "Can't handle the path input." + bcolors.ENDC)
-
-        else:
-            print("No IP address given.")
 
     def init_record(self, path: Path, universes):
         if universes != "":
@@ -229,27 +177,19 @@ class Menu:
 
             ### Replay menu ###
             if self.menu_state == 3: 
-                if option == 1:
+                if option == 1 or option == 2:
                     
                     # Get user input
                     path = self.wait_for_input(promt='Enter Filepath or Directory:', example='"C:/User/example.dat"', data_type=Path)
                     ip = self.wait_for_input(promt='Enter IP:', example='"10.0.0.5"', data_type=str)
 
                     # Start playback
-                    self.init_replay(path, ip)
+                    if option == 1 : self.rep = ArtNetPlayback(ip, path)
+                    elif option == 2: self.rep = ArtNetPlayback(ip, path, ShuffleLoop=True)
+                    self.rep.start_playback()
 
                     # Exit after playback
                     return
-
-                if option == 2:
-                    
-                    path = self.wait_for_input(promt='Enter Filepath or Directory (None for current path):', data_type=Path)
-                    ip = self.wait_for_input(promt='Enter IP:', example='"10.0.0.5"', data_type=str)
-
-                    self.shuffle_loop(path, ip)
-                    self.print_menu(3)
-                    continue
-
 
                 if option == 3:
 
@@ -271,9 +211,10 @@ class Menu:
  + bcolors.ENDC)
 
     def argparse(self, argv) -> int:
-        input_file = Path()
+        input_path = Path()
         output = Path()
         mode = ''
+        shuffle_loop = False
         ip = ''
         universes = []
         debug = 0
@@ -281,23 +222,24 @@ class Menu:
 Usage: ARPS.py [OPTIONS] or with menu.
 
 -h, --help: Print this help
--v, --verbose (40): Prints debug msg every n frames 
+-v, --verbose (n): Prints debug msg every n frames 
 -m, --mode (r,rec,record / p,play,playback): Mode to run in
 
 """ + bcolors.OKGREEN +"""----------playback----------
+-l, --loop: Playback in loop, shuffle after each loop
 -a, --adress (10.1.2.3): IP of Art-Net destination
--i, --ifile (C:/User/example.dat): File or Dir to play
+-i, --ifile: File or directory to play from
 
 """ + bcolors.OKBLUE +"""----------record----------
 -u, --universes (0,1,2,3): Universes to record
 -d, --duration (30): Duration of recording in minutes
--o, --out (C:/User/[example.dat]): Output file or directory
+-o, --out: Output file or directory
 """ + bcolors.ENDC
 
         try:
             opts, args = getopt.getopt(
-                argv, "hm:i:a:u:d:o:v:",
-                ["help", "mode=", "adress=", "ifile=", "universes=", "duration=", "out=", "verbose="])
+                argv, "hlm:i:a:u:d:o:v:",
+                ["help", "loop", "mode=", "adress=", "ifile=", "universes=", "duration=", "out=", "verbose="])
         except getopt.GetoptError:
             print(help)
             sys.exit(2)
@@ -311,6 +253,9 @@ Usage: ARPS.py [OPTIONS] or with menu.
                 if opt in ('-h', '--help'):
                     print(help)
                     sys.exit()
+
+                if opt in ('-l', '--loop'):
+                    shuffle_loop = True
 
                 elif opt in ("-m", "--mode"):
                     if arg in ('record','r','rec'):
@@ -346,8 +291,11 @@ Usage: ARPS.py [OPTIONS] or with menu.
             self.rec.record()
 
         elif mode == 'rep':
-            self.rep = ArtNetPlayback(ip, input_file, debug)
+            self.rep = ArtNetPlayback(ip, input_path, shuffle_loop ,debug)
             self.rep.start_playback()
+
+        else:
+            print(bcolors.FAIL + "Invalid mode. Get some --help." + bcolors.ENDC)
 
 
 if __name__ == '__main__':
