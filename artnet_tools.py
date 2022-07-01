@@ -29,7 +29,7 @@ class ArtNetRecord:
     length = 0  # Records length
     i = 0  # Debug interator
 
-    def __init__(self, universes: list, rec_dur: int, path: Path, compress = True, debug: int = 0):
+    def __init__(self, universes: list, rec_dur: int, path: Path, compress = False, debug: int = 0):
         """Initializes Recording Class.
 
         Args:
