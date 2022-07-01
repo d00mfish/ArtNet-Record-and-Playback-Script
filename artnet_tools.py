@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import re
 import sys
 import threading
@@ -23,8 +22,8 @@ class ArtNetRecord:
     FILENAME = "Art-Rec_" + datetime.now().strftime("%Y-%m-%d_%H%M%S")
     TMP_PATH = Path(gettempdir(), FILENAME + '.txt')
 
-    timeout = 5  # Seconds
-    min_len = 10  # Minimum n s to save
+    TIMEOUT = 5 *10**9  # 5 Seconds
+    MIN_LEN = 10 *10**9  # Minimum n s to save
 
     length = 0  # Records length
     i = 0  # Debug interator
@@ -40,7 +39,7 @@ class ArtNetRecord:
         # Instance variables
         self.universes = universes
         self.debug = debug
-        self.rec_time = rec_dur * 60 if rec_dur > 0 else 86.400  # 1 day if 0
+        self.rec_time = rec_dur * 60 * 10**9 if rec_dur > 0 else 86.400*10**9  # 1 day if 0
 
         # Smartnet instance
         self.a = SmartNetServer()
@@ -100,7 +99,7 @@ class ArtNetRecord:
         with open(self.TMP_PATH, 'w') as self.writer:
             # Timing variables
             self.last = time.time_ns()
-            self.start = time.time()
+            self.start = self.last
 
             # Register universe listeners on other threads
             self.a.register_multiple_listeners(
@@ -108,19 +107,18 @@ class ArtNetRecord:
 
             try:
                 # Test for elapsed time
-                while time.time() - self.start < self.rec_time:
-                    self.length = int((time.time() - self.start)
-                                      * 10**-6)  # Length in ms
+                while time.time_ns() - self.start < self.rec_time*10**9:
+                    self.length = time.time_ns() - self.start # Length in ns
 
                     # Refresh console writeout time
-                    sys.stdout.write("\r%is" % int(self.length*10**-3))
+                    sys.stdout.write("\r%.1fs" % (self.length*10**-9))
                     sys.stdout.flush()
 
                     # Timeout if no data is received for the given time
-                    if time.time_ns() - self.last > self.timeout * 10**9:
+                    if time.time_ns() - self.last > self.TIMEOUT:
                         raise TimeoutError
-
-                    time.sleep(1)
+                    print("test")
+                    time.sleep(0.2)
 
             # User abort
             except KeyboardInterrupt:
@@ -131,18 +129,18 @@ class ArtNetRecord:
             # Timeout abort
             except TimeoutError:
                 print("\n\n" + h.bcolors.FAIL +
-                      "No data received for {} seconds. Stopped recording.".format(self.timeout) + h.bcolors.ENDC)
+                      "No data received for {} seconds. Stopped recording.".format(round(self.TIMEOUT*10**-9)) + h.bcolors.ENDC)
 
             # Close properly
             del self.a
 
         # Check for minimal lenght
-        if self.length > self.min_len:
+        if self.length > self.MIN_LEN:
 
             # Add length and universes to end of file
             with open(self.TMP_PATH, 'a') as self.writer:
                 self.writer.write('!' + ','.join(str(u)
-                                  for u in self.universes) + " " + str(int(self.length)) + "\n")
+                                  for u in self.universes) + " " + str(round(self.length*10**-6)) + "\n")
 
             # Compress file to final location
             with open(self.TMP_PATH, 'rb') as tmp:
@@ -150,7 +148,7 @@ class ArtNetRecord:
 
         else:
             print(h.bcolors.FAIL + "File must be longer than {} seconds, NOT SAVING.".format(
-                self.min_len) + h.bcolors.ENDC)
+                int(self.MIN_LEN*10**-9)) + h.bcolors.ENDC)
 
         # Remove temp file
         remove(self.TMP_PATH)
