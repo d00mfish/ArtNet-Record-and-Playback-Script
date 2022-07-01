@@ -1,12 +1,24 @@
 #!/usr/bin/python
 
-from pathlib import Path
-from random import shuffle
-from turtle import bgcolor
-from artnet_tools import ArtNetPlayback, ArtNetRecord
+"""_summary_
+Python: 3.10.5
+"""
+
 import sys, getopt
 
+from pathlib import Path
+
+from artnet_tools import ArtNetPlayback, ArtNetRecord
 from helpfunctions import bcolors
+
+__author__ = "Leonhard Axtner"
+__copyright__ = "Copyright (C) 2022  Leonhard Axtner"
+__credits__ = ["Carlos Valente, author of StupidArtnet (Smartnets origin)"]
+__license__ = "MIT"
+__version__ = "1.6.0"
+__maintainer__ = "Leonhard Axtner"
+
+
 
 #TODO:
 

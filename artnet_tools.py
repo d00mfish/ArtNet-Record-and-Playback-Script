@@ -1,18 +1,18 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-import threading
-import helpfunctions as h
 import re
-import time
 import sys
+import threading
+import time
 
-from random import shuffle
 from datetime import datetime
 from os import remove, SEEK_CUR, SEEK_END, walk
 from pathlib import Path
+from random import shuffle
 from tempfile import gettempdir
 
 # local imports
+import helpfunctions as h
 from smartnet import Smartnet, SmartNetServer
 
 
