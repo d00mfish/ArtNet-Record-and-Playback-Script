@@ -42,12 +42,3 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
     ENDC = '\033[0m'
-
-print(bcolors.PINK + "Hello World!" + bcolors.ENDC)
-print(bcolors.OKBLUE + "Hello World!" + bcolors.ENDC)
-print(bcolors.OKCYAN + "Hello World!" + bcolors.ENDC)
-print(bcolors.OKGREEN + "Hello World!" + bcolors.ENDC)
-print(bcolors.WARNING + "Hello World!" + bcolors.ENDC)
-print(bcolors.FAIL + "Hello World!" + bcolors.ENDC)
-print(bcolors.BOLD + "Hello World!" + bcolors.ENDC)
-print(bcolors.UNDERLINE + "Hello World!" + bcolors.ENDC)

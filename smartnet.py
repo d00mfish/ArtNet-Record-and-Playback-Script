@@ -2,6 +2,7 @@
 
 import socket
 from threading import Timer,Thread
+from time import time, sleep
 
 def shift_this(number, high_first=True):
     """Utility method: extracts MSB and LSB from number.
@@ -270,7 +271,7 @@ class SmartNetServer():
                 for listener in self.listeners:
 
                     # is it the address we are listening to
-                    if listener['address_mask'] == data[14:16]:
+                    if listener['address_mask'] == data[14:16]: #  and self.listen
                         listener['buffer'] = list(data)[18:]
 
                         # check for registered callbacks
@@ -281,6 +282,7 @@ class SmartNetServer():
         """Graceful shutdown."""
         self.listeners.clear()
         self.close()
+
 
     def __str__(self):
         """Printable object state."""

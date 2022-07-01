@@ -28,31 +28,31 @@ class ArtNetRecord:
     length = 0  # Records length
     i = 0  # Debug interator
 
-    def __init__(self, universes: list, rec_dur: int, output: Path = Path(), debug: int = 0):
+    def __init__(self, universes: list, rec_dur: int, path: Path, debug: int = 0):
         """Initializes Recording Class.
 
         Args:
             universes (list): List of universes to record
-            rec_dur (int): Duration of recording in seconds, 0 is infinite
+            rec_dur (int): Duration of recording in minutes, 0 is infinite
         """
 
         # Instance variables
         self.universes = universes
         self.debug = debug
-        self.rec_time = rec_dur if rec_dur > 0 else 86.400  # 1 day if 0
+        self.rec_time = rec_dur * 60 if rec_dur > 0 else 86.400  # 1 day if 0
 
         # Smartnet instance
         self.a = SmartNetServer()
 
         # Test if output is a empty, adirectory or a file
-        if str(output) == ".":
-            self.final_path = Path(Path.cwd(), self.FILENAME + '.dat')
+        if path == Path():
+            self.final_path = Path(Path.cwd(), self.FILENAME + '.artrec')
 
-        elif output.name == '':
-            self.final_path = Path(output, self.FILENAME + ".dat")
+        elif path.name == '':
+            self.final_path = Path(path, self.FILENAME + ".artrec")
 
-        elif output.name != '':
-            self.final_path = output
+        elif path.name != '':
+            self.final_path = path
 
         print( h.bcolors.OKBLUE +"----------record----------\nUniverses: {}\nDuration: {}s\nOutput: '{}' ".format(self.universes,
               self.rec_time, self.final_path) + h.bcolors.ENDC)
@@ -66,7 +66,12 @@ class ArtNetRecord:
         """
         # write line: "int(time since last packet) int(universe) bytearray[data]"
         delay = time.time_ns() - self.last
-        self.writer.write(str(delay) + " " + str(universe) + " " + str(data) + "\n")
+        
+        try:
+            self.writer.write(str(delay) + " " + str(universe) + " " + str(data) + "\n")
+        
+        except Exception as e:
+            print(h.bcolors.FAIL + "Error writing to file: {}".format(e) + h.bcolors.ENDC)
 
         self.last = time.time_ns()
 
@@ -118,7 +123,7 @@ class ArtNetRecord:
 
             # Timeout abort
             except TimeoutError:
-                print("\n\n" + h.bcolors.FAIL + "No data received for {} seconds. Stopping recording.".format(self.timeout) + h.bcolors.ENDC)
+                print("\n\n" + h.bcolors.FAIL + "No data received for {} seconds. Stopped recording.".format(self.timeout) + h.bcolors.ENDC)
 
             # Close properly
             del self.a
@@ -181,8 +186,10 @@ class ArtNetPlayback:
     
         def send(m):
             """Send data over ArtNet through socket"""
+            # prepare data
             data = bytearray(list(map(int, m.group('data').split(','))))
 
+            # send data and set last timestamp
             self.a.send_data(data, int(m.group('universe')))
             self.last = time.time_ns()
 

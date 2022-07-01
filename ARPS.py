@@ -1,11 +1,16 @@
 #!/usr/bin/python
 
 from pathlib import Path
+from os import walk
+from random import shuffle
 from turtle import bgcolor
 from artnet_tools import ArtNetPlayback, ArtNetRecord
 import sys, getopt
 
 from helpfunctions import bcolors
+
+#TODO:
+# Test IP with regex mask
 
 
 class Menu:
@@ -30,8 +35,8 @@ class Menu:
 
     # Menu ID: 3
     replaymenu_options = {
-        1:  bcolors.OKGREEN + 'Start (path input)' + bcolors.ENDC,
-        2: 'Shuffle all local files',
+        1:  bcolors.OKGREEN + 'Play one or more files in dir' + bcolors.ENDC,
+        2: 'Shuffle all local files (not implemented)',
         3: 'Back',
         4: bcolors.FAIL + 'Exit' + bcolors.ENDC,
     }
@@ -76,6 +81,35 @@ class Menu:
 
         return ret
 
+    def get_artrec_files(self, path):
+
+        # Get all files in current directory
+        files = next(walk(path), (None, None, []))[2]
+
+        if files != []:
+            # Filter out all non-artrec files
+            files = [f for f in files if f.endswith('.artrec')]
+        
+        return files
+
+    def shuffle_loop(self, path, ip):
+        playlist = self.get_artrec_files(path)
+        if playlist != []:
+            try:
+                while(1):
+                    # Play all files in dir
+                    for file in playlist:
+                        self.rep = ArtNetPlayback(ip, Path.cwd() / file)
+                        print("Replaying: {}".format(file))
+                    
+                    # Re-shuffle playlist
+                    shuffle(playlist)
+
+            # Exit skript if user presses Ctrl+C
+            except KeyboardInterrupt:
+                print(bcolors.WARNING + "\nExiting loop..." + bcolors.ENDC)
+                return
+
     def print_menu(self, ID):
         """prints the menu with the given ID
 
@@ -89,6 +123,48 @@ class Menu:
 
     def __init__(self):
         pass
+
+    def init_replay(self, path: Path, ip):
+        """Determine if path is a file or a directory and start playback accordingly
+
+        Args:
+            path (Path): Directory or file to play
+            ip (_type_): IP of Art-Net receiver
+        """
+
+        if ip != '':
+        
+            if path.name.endswith('.artrec'):
+                self.rep = ArtNetPlayback(ip, path)
+                print(bcolors.OKGREEN + "Replaying..." + bcolors.ENDC)
+                self.rep.start_playback()
+
+            elif path.is_dir():
+                playlist = self.get_artrec_files(path)
+
+                if playlist != []:
+                    
+                    for artrec in playlist:
+                        self.rep = ArtNetPlayback(ip, path / artrec)
+                        print(bcolors.OKGREEN + "Replaying..." + bcolors.ENDC)
+                        self.rep.start_playback()
+                else:
+                    print(bcolors.FAIL + "No files found in directory." + bcolors.ENDC)
+                    
+                    return
+
+        else:
+            print("No IP address given.")
+
+    def init_record(self, path: Path, universes):
+        if universes != "":
+            universes = [int(i) for i in universes.strip('" ').split(',')]
+
+            self.rec = ArtNetRecord(universes, self.record_dur, path)
+            self.rec.record()
+        
+        else:
+            print(bcolors.FAIL + "No universes given." + bcolors.ENDC)
 
     def exit_skript(self):
         print(bcolors.PINK + 'Alright, bye!' + bcolors.ENDC)
@@ -119,63 +195,63 @@ class Menu:
             ### Record menu ###
             if self.menu_state == 2:
                 if option == 1:
-                    try:
-                        option = self.wait_for_input(promt='Universes to record', example='"0,1,2,3"', data_type=str)
+                    
+                    # Get user input
+                    universes = self.wait_for_input(promt='Universes to record', example='"0,1,2,3"', data_type=str)
+                    path = self.wait_for_input(promt = "Output dir/file path [leave empty for current dir]:", example = '"C:/Users/output.dat"', data_type=Path)
 
-                        if option != "":
-                            universes = [int(i) for i in option.strip('" ').split(',')]
-                            
-                            option = self.wait_for_input(promt = "Output dir/file path [leave empty for current dir]:", example = '"C:/Users/output.dat"', data_type=str)
-                            output_path = Path(option.strip('" '))
+                    # Start recording
+                    self.init_record(path, universes)
 
-                            self.rec = ArtNetRecord(universes, self.record_dur, output_path)
-                            self.rec.record()
-
-                    except Exception as e:
-                        print("An Error occured:", e)
-
+                    # Exit after recording
                     return
 
                 if option == 2:
-                    option = self.wait_for_input(promt='Set Duration in Minutes, 0 is infinite: ', data_type=int)
 
-                    if option > 0:
-                        self.record_dur = option * 60
-                    else:
-                        self.record_dur = 0
+                    # Get user input
+                    self.record_dur = self.wait_for_input(promt='Set Duration in Minutes, 0 is infinite: ', data_type=int)
 
+                    # Return to record menu
                     self.print_menu(2)
                     continue
 
                 if option == 3:
+                    
+                    # Return to main menu
                     self.print_menu(1)
 
                 if option == 4:
+
+                    # Exit
                     return
 
             ### Replay menu ###
-            if self.menu_state == 3:  # Replay menu
+            if self.menu_state == 3: 
                 if option == 1:
-                    path = self.wait_for_input(promt='Enter Filepath:', example='"C:/User/example.dat"', data_type=Path)
                     
-
+                    # Get user input
+                    path = self.wait_for_input(promt='Enter Filepath or Directory:', example='"C:/User/example.dat"', data_type=Path)
                     ip = self.wait_for_input(promt='Enter IP:', example='"10.0.0.5"', data_type=str)
-                    if ip != '':
-                        try:
-                            self.rep = ArtNetPlayback(ip, path)
-                            print("Replaying...")
-                            self.rep.start_playback()
 
-                        except Exception as e:
-                            print("An Error occured:", e)
+                    # Start playback
+                    self.init_replay(path, ip)
 
-                        self.print_menu(2)
-                        continue
+                    # Exit after playback
+                    return
 
                 if option == 2:
-                    print("Not implemented yet")
+                    
+                    path = self.wait_for_input(promt='Enter Filepath or Directory (None for current path):', data_type=Path)
+                    ip = self.wait_for_input(promt='Enter IP:', example='"10.0.0.5"', data_type=str)
+
+                    self.shuffle_loop(path, ip)
+                    self.print_menu(3)
+                    continue
+
 
                 if option == 3:
+
+                    # Return to main menu
                     self.print_menu(1)
 
                 if option == 4:
@@ -208,7 +284,7 @@ Usage: ARPS.py [OPTIONS] or with menu.
 
 """ + bcolors.OKGREEN +"""----------playback----------
 -a, --adress (10.1.2.3): IP of Art-Net destination
--i, --ifile (C:/User/example.dat): File to play
+-i, --ifile (C:/User/example.dat): File or Dir to play
 
 """ + bcolors.OKBLUE +"""----------record----------
 -u, --universes (0,1,2,3): Universes to record
@@ -264,21 +340,12 @@ Usage: ARPS.py [OPTIONS] or with menu.
             return -1
             
         if mode == 'rec':
-
             self.rec = ArtNetRecord(universes, self.record_dur, output, debug)
-            self.rec.start_recording()
+            self.rec.record()
+
         elif mode == 'rep':
-            print("""
-----------playback----------
-Adress: {}
-File: "{}"
-""".format(ip, input_file))
             self.rep = ArtNetPlayback(ip, input_file, debug)
             self.rep.start_playback()
-
-        
-
-    
 
 
 if __name__ == '__main__':
