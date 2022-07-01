@@ -49,10 +49,10 @@ class ArtNetRecord:
 
         # Test if output is a empty, adirectory or a file
         if path == Path():
-            self.final_path = Path(Path.cwd(), self.FILENAME + '.artrec' if self.compress else '.rawrec')
+            self.final_path = Path(Path.cwd(), self.FILENAME + '.artrec' if self.compress else self.FILENAME +  '.rawrec')
 
         elif path.name == '':
-            self.final_path = Path(path, self.FILENAME + ".artrec" if self.compress else ".rawrec")
+            self.final_path = Path(path, self.FILENAME + ".artrec" if self.compress else self.FILENAME +  ".rawrec")
 
         elif path.name != '':
             self.final_path = path
@@ -154,7 +154,7 @@ class ArtNetRecord:
             
             else:
                 # Move file to final location
-                rename(self.TMP_PATH, self.final_path.with_suffix('.rawrec'))
+                rename(self.TMP_PATH, self.final_path)
 
         else:
             print(h.bcolors.FAIL + "File must be longer than {} seconds, NOT SAVING.".format(
