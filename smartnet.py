@@ -190,7 +190,7 @@ class Smartnet():
 
     def send_data(self, data: bytearray, universe: int):
         """Finally send data."""
-        packet = self.header_list[universe-1] + self.__make_packetsize_byte(len(data))
+        packet = self.header_list[universe] + self.__make_packetsize_byte(len(data))
         packet.extend(data)
 
         try:
