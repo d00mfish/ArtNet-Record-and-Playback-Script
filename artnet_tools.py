@@ -306,11 +306,11 @@ class ArtNetPlayback:
                             sys.stdout.write("\r%.1fs" % remaining)
                             sys.stdout.flush()
                         else:
-                            sys.stdout.write("\rFinished!")
+                            sys.stdout.write("\rPlaying last frames...")
                             sys.stdout.flush()
                         time.sleep(0.2)
 
-                    print('\n')
+                    print('\nFinished!')
 
                 if self.shuffle_loop:
                     print(h.bcolors.PINK +
