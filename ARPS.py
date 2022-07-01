@@ -265,7 +265,7 @@ Usage: ARPS.py [OPTIONS] or with menu.
                         mode = 'rep'
 
                 elif opt in ("-i", "--ifile"):
-                    input_file = Path(arg.strip('" '))
+                    input_path = Path(arg.strip('" '))
 
                 elif opt in ("-a", "--adress"):
                     ip = arg.strip('"')
