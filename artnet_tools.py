@@ -5,7 +5,7 @@ import threading
 import time
 
 from datetime import datetime
-from os import remove, SEEK_CUR, SEEK_END, walk
+from os import remove, SEEK_CUR, SEEK_END, walk, rename
 from pathlib import Path
 from random import shuffle
 from tempfile import gettempdir
@@ -25,10 +25,11 @@ class ArtNetRecord:
     TIMEOUT = 5 *10**9  # 5 Seconds
     MIN_LEN = 10 *10**9  # Minimum n s to save
 
+    RunCallback = True # Stop Thread Flag
     length = 0  # Records length
     i = 0  # Debug interator
 
-    def __init__(self, universes: list, rec_dur: int, path: Path, debug: int = 0):
+    def __init__(self, universes: list, rec_dur: int, path: Path, compress = True, debug: int = 0):
         """Initializes Recording Class.
 
         Args:
@@ -37,25 +38,27 @@ class ArtNetRecord:
         """
 
         # Instance variables
+        self.compress = compress
         self.universes = universes
         self.debug = debug
-        self.rec_time = rec_dur * 60 * 10**9 if rec_dur > 0 else 86.400*10**9  # 1 day if 0
+
+        self.rec_time = rec_dur * 10**9 if rec_dur > 0 else 86.400*10**9  # 1 day if 0
 
         # Smartnet instance
         self.a = SmartNetServer()
 
         # Test if output is a empty, adirectory or a file
         if path == Path():
-            self.final_path = Path(Path.cwd(), self.FILENAME + '.artrec')
+            self.final_path = Path(Path.cwd(), self.FILENAME + '.artrec' if self.compress else '.rawrec')
 
         elif path.name == '':
-            self.final_path = Path(path, self.FILENAME + ".artrec")
+            self.final_path = Path(path, self.FILENAME + ".artrec" if self.compress else ".rawrec")
 
         elif path.name != '':
             self.final_path = path
 
         print(h.bcolors.OKBLUE + "----------record----------\nUniverses: {}\nDuration: {}s\nOutput: '{}' ".format(self.universes,
-                                                                                                                  self.rec_time, self.final_path) + h.bcolors.ENDC)
+                                                                                                                  round(self.rec_time*10**-9), self.final_path) + h.bcolors.ENDC)
 
     def __callback(self, data, universe: int):
         """Callback for every Packet
@@ -64,26 +67,27 @@ class ArtNetRecord:
             data (bytearray): Package data to store
             universe (int): Universe
         """
-        # write line: "int(time since last packet) int(universe) bytearray[data]"
-        delay = time.time_ns() - self.last
+        if self.RunCallback:
+            # write line: "int(time since last packet) int(universe) bytearray[data]"
+            delay = time.time_ns() - self.last
 
-        try:
-            self.writer.write(str(delay) + " " +
-                              str(universe) + " " + str(data) + "\n")
+            try:
+                self.writer.write(str(delay) + " " +
+                                str(universe) + " " + str(data) + "\n")
 
-        except Exception as e:
-            print(h.bcolors.FAIL +
-                  "Error writing to file: {}".format(e) + h.bcolors.ENDC)
+            except Exception as e:
+                print(h.bcolors.FAIL +
+                    "Error writing to file: {}".format(e) + h.bcolors.ENDC)
 
-        self.last = time.time_ns()
+            self.last = time.time_ns()
 
-        if self.debug:
-            self.i += 1
-            # every n-th packet print info
-            if self.i == self.debug:
-                print('U: {}, Size: {}, Delay: {}ms\n'.format(
-                    universe, len(data), round(delay * 10**-6, 6)))
-                self.i = 0
+            if self.debug:
+                self.i += 1
+                # every n-th packet print info
+                if self.i == self.debug:
+                    print('U: {}, Size: {}, Delay: {}ms\n'.format(
+                        universe, len(data), round(delay * 10**-6, 6)))
+                    self.i = 0
 
     def record(self):
         """Opens a temp file and writes the data to it.
@@ -117,7 +121,6 @@ class ArtNetRecord:
                     # Timeout if no data is received for the given time
                     if time.time_ns() - self.last > self.TIMEOUT:
                         raise TimeoutError
-                    print("test")
                     time.sleep(0.2)
 
             # User abort
@@ -132,6 +135,7 @@ class ArtNetRecord:
                       "No data received for {} seconds. Stopped recording.".format(round(self.TIMEOUT*10**-9)) + h.bcolors.ENDC)
 
             # Close properly
+            self.RunCallback = False
             del self.a
 
         # Check for minimal lenght
@@ -142,16 +146,19 @@ class ArtNetRecord:
                 self.writer.write('!' + ','.join(str(u)
                                   for u in self.universes) + " " + str(round(self.length*10**-6)) + "\n")
 
-            # Compress file to final location
-            with open(self.TMP_PATH, 'rb') as tmp:
-                h.write_file(tmp.read(), self.final_path)
+            if self.compress:
+                # Compress file to final location
+                with open(self.TMP_PATH, 'rb') as tmp:
+                    h.write_file(tmp.read(), self.final_path)
+                remove(self.TMP_PATH)
+            
+            else:
+                # Move file to final location
+                rename(self.TMP_PATH, self.final_path.with_suffix('.rawrec'))
 
         else:
             print(h.bcolors.FAIL + "File must be longer than {} seconds, NOT SAVING.".format(
                 int(self.MIN_LEN*10**-9)) + h.bcolors.ENDC)
-
-        # Remove temp file
-        remove(self.TMP_PATH)
 
 
 class ArtNetPlayback:
@@ -180,7 +187,7 @@ class ArtNetPlayback:
         self.target_ip = target_ip
 
         # Create List of Filenames + directory variable
-        if filepath.name.endswith('.artrec'):
+        if filepath.name.endswith(('.artrec', '.rawrec')):
             self.dir = filepath.parent
             self.playlist = [filepath.name]
 
@@ -197,7 +204,7 @@ class ArtNetPlayback:
 
         if self.debug:
             print(h.bcolors.OKBLUE + "----------playback----------\nAdress: {}\nFile: '{}' ".format(
-                self.target_ip, self.filepath) + h.bcolors.ENDC)
+                self.target_ip, self.dir) + h.bcolors.ENDC)
 
     def get_artrec_files(self, path):
 
@@ -206,7 +213,7 @@ class ArtNetPlayback:
 
         if files != []:
             # Filter out all non-artrec files
-            files = [f for f in files if f.endswith('.artrec')]
+            files = [f for f in files if f.endswith(('.artrec', '.rawrec'))]
 
         return files
 
@@ -279,7 +286,11 @@ class ArtNetPlayback:
                     self.a = Smartnet(self.target_ip, self.universes, 40)
 
                     # Open file
-                    textfile = open(h.unzip_file(path), 'r')
+                    # Unzips if file is zipped
+                    if path.suffix == '.artrec':
+                        textfile = open(h.unzip_file(path), 'r')
+                    elif path.suffix == '.rawrec':
+                        textfile = open(path, 'r')
 
                     # Start thread
                     self.worker = threading.Thread(
@@ -328,18 +339,23 @@ class ArtNetPlayback:
         Returns:
             tuple(int[duration in ms], list[int(universes)])
         """
+        # Unzips if file is zipped
+        if filepath.suffix == '.artrec':
+            tf = open(h.unzip_file(filepath), 'rb')
+        elif filepath.suffix == '.rawrec':
+            tf = open(filepath, 'rb')
 
-        with open(h.unzip_file(filepath), 'rb') as tf:
+        try:
+            tf.seek(-2, SEEK_END)
+            while tf.read(1) != b'\n':
+                tf.seek(-2, SEEK_CUR)
 
-            try:
-                tf.seek(-2, SEEK_END)
-                while tf.read(1) != b'\n':
-                    tf.seek(-2, SEEK_CUR)
+        # catch OSError in case of a one line file
+        except OSError:
+            tf.seek(0)
 
-            # catch OSError in case of a one line file
-            except OSError:
-                tf.seek(0)
+        last_line_info = tf.readline().decode().replace('!', '').split(' ')
 
-            last_line_info = tf.readline().decode().replace('!', '').split(' ')
+        tf.close()
 
         return int(last_line_info[1]), list(map(int, last_line_info[0].split(',')))
