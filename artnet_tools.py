@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-from math import remainder
 import threading
 import helpfunctions as h
 import re
