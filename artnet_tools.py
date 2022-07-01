@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from math import remainder
 import threading
 import helpfunctions as h
 import re
@@ -235,11 +236,13 @@ class ArtNetPlayback:
 
             # Wait for  thread to die
             while self.worker.is_alive():
+                remaining = round(((self.duration * 10**6) - (time.time_ns() - self.start)) * 10**-9, 3)
                 #refresh remaining time
-                sys.stdout.write("\r%is" % round((self.duration * 10**6 - (time.time_ns() - self.start)) * 10**-9))
-                sys.stdout.flush()
+                if remaining > 0:
+                    sys.stdout.write("\r%is" % remaining)
+                    sys.stdout.flush()
 
-                time.sleep(1)
+                time.sleep(0.1)
 
             print('\n')
 

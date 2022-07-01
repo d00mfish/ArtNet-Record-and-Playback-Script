@@ -11,6 +11,7 @@ from helpfunctions import bcolors
 
 #TODO:
 # Test IP with regex mask
+# Dispalyed time gets negative
 
 
 class Menu:
@@ -144,14 +145,15 @@ class Menu:
 
                 if playlist != []:
                     
-                    for artrec in playlist:
+                    for i,artrec in enumerate(playlist):
                         self.rep = ArtNetPlayback(ip, path / artrec)
-                        print(bcolors.OKGREEN + "Replaying..." + bcolors.ENDC)
+                        print(bcolors.OKGREEN + f"Replaying...{i+1}/{len(playlist)}" + bcolors.ENDC)
                         self.rep.start_playback()
                 else:
                     print(bcolors.FAIL + "No files found in directory." + bcolors.ENDC)
-                    
-                    return
+
+            else:
+                print(bcolors.FAIL + "Can't handle the path input." + bcolors.ENDC)
 
         else:
             print("No IP address given.")
